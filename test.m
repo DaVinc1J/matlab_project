@@ -1,0 +1,239 @@
+function test()
+	[char, font, colour, ui, user, keymap] = setup();
+
+	guidata(ui.fig, struct('char', char, 'colour', colour, 'ui', ui, 'user', user, 'keymap', keymap));
+
+	set(ui.fig, 'KeyPressFcn', @(src, event) event_check(event, ui.fig));
+
+	while isvalid(ui.fig) && ~user.quit
+		data = guidata(ui.fig);
+		char = data.char;
+		colour = data.colour;
+		ui = data.ui;
+		user = data.user;
+
+		[char, colour, ui, user] = draw_map(char, colour, ui, user);
+		guidata(ui.fig, struct('char', char, 'colour', colour, 'ui', ui, 'user', user, 'keymap', keymap));
+		drawnow;
+		pause(0.01);
+	end
+end
+
+function event_check(event, fig)
+	data = guidata(fig);
+	char = data.char;
+	ui = data.ui;
+	user = data.user;
+	keymap = data.keymap;
+
+	new_pos = user.character_pos;
+
+	switch event.Key
+	case keymap.up
+		new_pos(1) = new_pos(1) + 1;
+	case keymap.down
+		new_pos(1) = new_pos(1) - 1;
+	case keymap.left
+		new_pos(2) = new_pos(2) - 1;
+	case keymap.right
+		new_pos(2) = new_pos(2) + 1;
+	end
+
+	if ui.fg_map(new_pos(1), new_pos(2)) ~= char.wall
+		if ~isequal(new_pos, user.character_pos)
+			user.old_pos = user.character_pos;
+			user.character_pos = new_pos;
+		end
+	end
+
+	guidata(fig, struct('char', char, 'colour', data.colour, 'ui', ui, 'user', user, 'keymap', keymap));
+end
+
+function [char, colour, ui, user] = draw_map(char, colour, ui, user)
+	ui.fg_map(user.old_pos(1), user.old_pos(2)) = char.floor;
+	ui.fg_map(user.character_pos(1), user.character_pos(2)) = char.character;
+
+	old_x = ui.fg_X(user.old_pos(1), user.old_pos(2));
+	old_y = ui.fg_Y(user.old_pos(1), user.old_pos(2));
+
+	new_x = ui.fg_X(user.character_pos(1), user.character_pos(2));
+	new_y = ui.fg_Y(user.character_pos(1), user.character_pos(2));
+
+	old_index = sub2ind(size(ui.bg_map), user.old_pos(1), user.old_pos(2));
+	set(ui.bg_text(old_index), 'Color', colour.floor_bg, 'Position', [old_x, old_y], 'String', char.background);
+
+	old_fg_index = sub2ind(size(ui.fg_map), user.old_pos(1), user.old_pos(2));
+	set(ui.fg_text(old_fg_index), 'Color', colour.floor_fg, 'Position', [old_x, old_y], 'String', char.floor);
+
+	new_index = sub2ind(size(ui.bg_map), user.character_pos(1), user.character_pos(2));
+	set(ui.bg_text(new_index), 'Color', colour.character_bg, 'Position', [new_x, new_y], 'String', char.background);
+
+	new_fg_index = sub2ind(size(ui.fg_map), user.character_pos(1), user.character_pos(2));
+	set(ui.fg_text(new_fg_index), 'Color', colour.character_fg, 'Position', [new_x, new_y], 'String', char.character);
+
+end
+
+function [char, font, colour, ui, user, keymap] = setup()
+
+	char = struct(...
+	'empty', ' ', ...
+	'floor', '-', ...
+	'character', '@', ...
+	'background', '󰝤', ...
+	'wall', '#' ...
+	);
+
+	font = struct(...
+	'name', 'VictorMono Nerd Font', ...
+	'fg_size', 14, ...
+	'bg_size', 24, ...
+	'width', '', ...
+	'height', '' ...
+	);
+	[font.width, font.height] = get_font_sizes(font.name, font.fg_size);
+
+	colour = struct(...
+	'floor_fg', [0.8, 0.8, 0.8], ...
+	'wall_fg', [0.3, 0.3, 0.3], ...
+	'wall_bg', [0.1, 0.1, 0.1], ...
+	'floor_bg', [0.2, 0.2, 0.2], ...
+	'character_fg', [0.8, 0.8, 0.8], ...
+	'character_bg', [0.0, 0.0, 0.0], ...
+	'background', [0, 0, 0] ...
+	);
+
+	ui = struct(...
+	'ax', 0, ...
+	'fg_text', 0, ...
+	'bg_text', 0, ...
+	'fg_map', 0, ...
+	'bg_map', 0, ...
+	'fg_x', 0, ...
+	'fg_y', 0, ...
+	'bg_x', 0, ...
+	'bg_y', 0, ...
+	'fig', 0, ...
+	'screen_size', zeros(1, 4), ...
+	'window_size', zeros(1, 2), ...
+	'rows', 0, ...
+	'cols', 0 ...
+	);
+
+	user = struct(...
+	'character_pos', 0, ...
+	'old_pos', NaN, ...
+	'quit', false, ...
+	'update_map', true ...
+	);
+
+	keymap = struct(...
+	'up', 'w', ...
+	'left', 'a', ...
+	'down', 's', ...
+	'right', 'd' ...
+	);
+
+	screen_size = get(0, 'ScreenSize');  
+
+	ui.window_size(1) = screen_size(3) / 2;
+	ui.window_size(2) = screen_size(4) / 2;
+
+	ui.rows = round((ui.window_size(1) / (font.height + 8)));
+	ui.cols = round( 2.1 * (ui.window_size(2) / (font.height + 3)));
+
+	ui.fig = figure('Name', 'test', ...
+	'NumberTitle', 'off', ...
+	'MenuBar', 'none', ...
+	'ToolBar', 'none', ...
+	'Color', 'black', ...
+	'Position', [ui.window_size(1) / 2, ui.window_size(2) / 2, ui.window_size(1), ui.window_size(2)]);
+
+	ui.ax = axes('Parent', ui.fig, ...
+	'XColor', 'none', 'YColor', 'none', ...
+	'Position', [0, 0, 1, 1], ...
+	'XLim', [0, ui.cols], 'YLim', [0, ui.rows], ...
+	'Color', 'black', ...
+	'DataAspectRatio', [1 1 1], ...
+	'XTick', [], 'YTick', []);
+
+	ui.fg_map = repmat(char.empty, ui.rows, ui.cols);
+	ui.bg_map = repmat(char.empty, ui.rows, ui.cols);
+	user.character_pos = [ceil(ui.rows / 2), ceil(ui.cols / 2)];
+	user.old_pos = user.character_pos;
+
+	ui.fg_map(:) = char.floor;
+	ui.fg_map(1, :) = char.wall;
+	ui.fg_map(end, :) = char.wall;
+	ui.fg_map(:, 1) = char.wall;
+	ui.fg_map(:, end) = char.wall;
+
+	[ui.fg_X, ui.fg_Y] = meshgrid(1:ui.cols, 1:ui.rows);
+	[ui.bg_X, ui.bg_Y] = meshgrid(1:ui.cols, 1:ui.rows); 
+
+	ui.fg_X = ui.fg_X - 0.5;
+	ui.fg_Y = ui.fg_Y - 0.5;
+	ui.bg_X = ui.bg_X - 0.65;
+	ui.bg_Y = ui.bg_Y - 0.5;
+
+	ui.bg_text = text(ui.ax, ...
+	ui.bg_X(:), ...
+	ui.bg_Y(:), ...
+	ui.bg_map(:), ...
+	'Color', 'black', ...
+	'FontName', font.name, ...
+	'FontSize', font.bg_size, ...
+	'HorizontalAlignment', 'center', ...
+	'VerticalAlignment', 'middle');
+
+	ui.fg_text = text(ui.ax, ...
+	ui.fg_X(:), ...
+	ui.fg_Y(:), ...
+	ui.fg_map(:), ...
+	'Color', 'white', ...
+	'FontName', font.name, ...
+	'FontSize', font.fg_size, ...
+	'HorizontalAlignment', 'center', ...
+	'VerticalAlignment', 'middle');
+
+	for i = 1:numel(ui.bg_text)
+		text_pos = [ui.bg_X(i), ui.bg_Y(i)];
+		set(ui.bg_text(i), 'Color', colour.background , 'Position', text_pos, 'String', char.background);
+	end
+
+	for i = 1:numel(ui.fg_text)
+		text_pos = [ui.fg_X(i), ui.fg_Y(i)];
+		switch ui.fg_map(i)
+		case char.floor
+			set(ui.fg_text(i), 'Color', colour.floor_fg);
+			set(ui.bg_text(i), 'Color', colour.floor_bg);
+		case char.wall
+			set(ui.fg_text(i), 'Color', colour.wall_fg);
+			set(ui.bg_text(i), 'Color', colour.wall_bg);
+		case char.character
+			set(ui.fg_text(i), 'Color', colour.character_fg);
+			set(ui.fg_text(i), 'Color', colour.character_bg);
+		otherwise
+			set(ui.fg_text(i), 'Color', 'white');
+			set(ui.fg_text(i), 'Color', 'black');
+		end
+
+		set(ui.fg_text(i), 'Position', text_pos, 'String', ui.fg_map(i));
+	end
+
+end
+
+function [width, height] = get_font_sizes(name, size)
+
+	fig = figure('Visible', 'off');
+
+	temp_text = text(0, 0, 'A', 'FontName', name, 'FontSize', size, 'Units', 'pixels', 'Visible', 'off');
+
+	extent = get(temp_text, 'Extent');
+
+	width = extent(3);
+	height = extent(4);
+
+	delete(temp_text);
+	close(fig);
+
+end

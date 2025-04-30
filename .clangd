@@ -1,0 +1,16 @@
+CompileFlags:
+  Add: [
+    "-I/Applications/MATLAB_R2024b.app/extern/include",
+    "-I/Applications/MATLAB_R2024b.app/simulink/include",
+    "-L/Applications/MATLAB_R2024b.app/bin/maci64",
+    "-lmx",
+    "-lmex",
+    "-lmat",
+    "-I/opt/homebrew/include",
+    "-L/opt/homebrew/lib",
+    "-lglfw",
+    "-framework", "Cocoa",
+    "-framework", "OpenGL",
+    "-framework", "IOKit",
+    "-framework", "CoreVideo"
+  ]

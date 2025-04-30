@@ -1,0 +1,7 @@
+tristan - score -> 2
+not tristan - score -> 5
+ttristan - score -> 7
+nnot tristan - score -> 10
+idk - score -> 11
+not sure - score -> 8
+woohoo - score -> 12
